@@ -14,7 +14,7 @@ from MySql.models import User
 from MySql.schemas import UserCreate
 from redis_utiles.redis_client import save_chat_message, get_recent_messages, cache_user_info
 from redis_utiles.redis_emotion import save_emotion_analysis, get_emotion_history
-from services.emotion_classifier import classify_emotion
+from services.emotion_classifier import classify_emotion, classify_emotion_gpt
 # ✅ 환경변수 로드 및 OpenAI 클라이언트 설정
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -103,8 +103,8 @@ def chat_with_ai(chat: ChatInput):
     print(f"[DEBUG] userId: {chat.userId}, message: {chat.message}")
 
     try:
-        # 1️⃣ 감정 분석 + 키워드 추출
-        emotion, keywords = classify_emotion(chat.message)
+        # 1️⃣ 감정 분석 + 키워드 추출 (우선 GPT 시도, 실패 시 로컬 규칙 사용)
+        emotion, keywords = classify_emotion_gpt(chat.message, client)
 
         # 2️⃣ 최근 대화 내용 Redis에서 불러오기 (context)
         context = get_recent_messages(chat.userId)
