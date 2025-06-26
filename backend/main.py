@@ -13,7 +13,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 #redis 추가된 부분
 from redis.redis_client import save_chat_message, get_recent_messages, cache_user_info
-from redis.redis_emotion import save_emotion_analysis
+from redis.redis_emotion import save_emotion_analysis, get_emotion_history
 from emotion_classifier import classify_emotion
 from datetime import datetime
 
@@ -117,3 +117,8 @@ def chat(chat: ChatInput):
 def get_chat_context(user_id: str):
     messages = get_recent_messages(user_id)
     return {"recent_messages": messages}
+
+@app.get("/chat/emotions/{user_id}")
+def get_emotions(user_id: str, limit: int = 10):
+    records = get_emotion_history(user_id, limit)
+    return {"emotion_history": records}
