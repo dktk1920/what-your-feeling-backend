@@ -1,6 +1,7 @@
 import openai
 import os
 from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from MySql.database import SessionLocal
@@ -19,7 +20,7 @@ from redis_utiles.redis_emotion import save_emotion_analysis, get_emotion_histor
 from emotion_classifier import classify_emotion
 from datetime import datetime
 
-load_dotenv()
+
 openai.api_key=os.getenv("OPENAI_API_KEY")
 
 # DB 초기화
@@ -100,32 +101,28 @@ class ChatInput(BaseModel):
 
 @app.post("/chat")
 def chat(chat: ChatInput):
-    save_chat_message(chat.userId, chat.message)
-    context = get_recent_messages(chat.userId)
-
     try:
-        gpt_response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": chat.message}],
-        )
-        reply_text = gpt_response.choices[0].message["content"].strip()
-    except Exception as e:
-        print(f"OpenAI API call failed: {e}")
-        raise HTTPException(status_code=500, detail="AI response generation failed")
-
-    try:
+        print(f"[DEBUG] userId: {chat.userId}, message: {chat.message}")
+        reply = generate_ai_reply(chat.message)
         emotion, keywords = classify_emotion(chat.message)
+
         save_emotion_analysis(
-            chat.userId,
-            datetime.now().isoformat(),
-            chat.message,
-            emotion,
-            keywords,
+            user_id=chat.userId,
+            timestamp=str(datetime.now()),
+            message=chat.message,
+            emotion=emotion,
+            keywords=keywords,
         )
+
+        return {
+            "context": [{"content": chat.message}],
+            "reply": reply,
+            "emotion": emotion,
+        }
+
     except Exception as e:
-        print(f"Emotion classification failed: {e}")
-        emotion = "unknown"
-        keywords = []
+        print(f"🔥 에러 발생: {e}")
+        raise HTTPException(status_code=500, detail="AI response generation failed")
 
     return {"context": context, "reply": reply_text, "emotion": emotion}
 
