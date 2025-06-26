@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
+import { getApiBase } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Send, Clock } from "lucide-react"
@@ -82,7 +83,7 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
     }
 
     try {
-      const response = await fetch("/chat", {
+      const response = await fetch(`${getApiBase()}chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

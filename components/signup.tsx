@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { getApiBase } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -75,7 +76,7 @@ const handleSubmit = async () => {
   setStep("submitting");
 
   try {
-    const response = await fetch("/signup", {
+    const response = await fetch(`${getApiBase()}signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
