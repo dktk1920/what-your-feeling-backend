@@ -38,3 +38,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Environment Variables
 
 `NEXT_PUBLIC_API_BASE` sets the base URL used by frontend API calls. If not provided, `/` is used.
+
+## Emotion Training
+
+Run `backend/emotion_trainer.py` with your labeled chat CSV files to build an
+`emotion_rules.json` file used by the API. Each CSV should contain `message` and
+`emotion` columns (or `text`/`label`). The generated rules allow
+`classify_emotion` to infer emotions such as "기쁨" or "슬픔" from incoming
+messages.
