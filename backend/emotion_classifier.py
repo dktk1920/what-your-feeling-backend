@@ -1,28 +1,41 @@
-# Simple emotion classifier placeholder
-# Returns sentiment (positive, negative, mixed, or neutral) and list of detected keywords
+import json
+import os
+
+# Load trained emotion rules if available
+_RULE_PATH = os.path.join(os.path.dirname(__file__), "emotion_rules.json")
+if os.path.exists(_RULE_PATH):
+    with open(_RULE_PATH, encoding="utf-8") as f:
+        EMOTION_RULES = json.load(f)
+else:
+    EMOTION_RULES = {}
+
+
+# fallback keywords if no rules found
+POSITIVE_KEYWORDS = ["행복", "좋아", "기쁨", "즐겁", "사랑", "감사"]
+NEGATIVE_KEYWORDS = ["슬퍼", "우울", "싫어", "화나", "짜증", "불안"]
+
 
 def classify_emotion(message: str):
-    """Classify the sentiment of a message and extract keywords.
+    """Return detected emotion and matched keywords."""
+    if EMOTION_RULES:
+        scores = {}
+        matches = {}
+        for emotion, keywords in EMOTION_RULES.items():
+            found = [kw for kw in keywords if kw in message]
+            scores[emotion] = len(found)
+            matches[emotion] = found
+        if scores:
+            best = max(scores, key=scores.get)
+            if scores[best] > 0:
+                return best, matches[best]
 
-    This is a placeholder implementation based on keyword matching.
-    """
-    positive_keywords = ["행복", "좋아", "기쁨", "즐겁", "사랑", "감사"]
-    negative_keywords = ["슬퍼", "우울", "싫어", "화나", "짜증", "불안"]
-
-    found_positive = [kw for kw in positive_keywords if kw in message]
-    found_negative = [kw for kw in negative_keywords if kw in message]
-
-    if found_positive and not found_negative:
-        sentiment = "positive"
-        keywords = found_positive
-    elif found_negative and not found_positive:
-        sentiment = "negative"
-        keywords = found_negative
-    elif found_positive and found_negative:
-        sentiment = "mixed"
-        keywords = found_positive + found_negative
-    else:
-        sentiment = "neutral"
-        keywords = []
-
-    return sentiment, keywords
+    # Fallback simple sentiment rules
+    found_pos = [kw for kw in POSITIVE_KEYWORDS if kw in message]
+    found_neg = [kw for kw in NEGATIVE_KEYWORDS if kw in message]
+    if found_pos and not found_neg:
+        return "positive", found_pos
+    if found_neg and not found_pos:
+        return "negative", found_neg
+    if found_pos and found_neg:
+        return "mixed", found_pos + found_neg
+    return "neutral", []
