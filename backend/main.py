@@ -123,10 +123,17 @@ def chat_with_ai(chat: ChatInput):
         reply_text = response.choices[0].message.content.strip()
 
         # 5️⃣ Redis 저장
-        save_chat_message(chat.userId, chat.message)
+        timestamp = datetime.now().isoformat()
+        save_chat_message(
+            user_id=chat.userId,
+            timestamp=timestamp,
+            message=chat.message,
+            emotion=emotion,
+            keywords=keywords,
+        )
         save_emotion_analysis(
             user_id=chat.userId,
-            timestamp=str(datetime.now()),
+            timestamp=timestamp,
             message=chat.message,
             emotion=emotion,
             keywords=keywords,
