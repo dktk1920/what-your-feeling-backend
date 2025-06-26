@@ -15,6 +15,7 @@ interface Message {
   content: string
   sender: "user" | "ai"
   timestamp: Date
+  emotion?: string
 }
 
 interface ChatInterfaceProps {
@@ -117,6 +118,7 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
             content: data.reply,
             sender: "ai",
             timestamp: new Date(),
+            emotion: data.emotion,
           })
 
           return updated
