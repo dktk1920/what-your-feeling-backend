@@ -116,11 +116,15 @@ def chat_with_ai(chat: ChatInput):
         ]
 
         # 4️⃣ GPT 응답 생성 (OpenAI v1 방식)
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=prompt
-        )
-        reply_text = response.choices[0].message.content.strip()
+        try:
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=prompt
+            )
+            reply_text = response.choices[0].message.content.strip()
+        except Exception as gpt_error:
+            print(f"⚠️ GPT 호출 실패: {gpt_error}")
+            reply_text = "죄송합니다. 현재 답변을 생성할 수 없습니다."
 
         # 5️⃣ Redis 저장
         timestamp = datetime.now().isoformat()
