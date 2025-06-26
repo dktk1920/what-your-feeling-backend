@@ -15,6 +15,7 @@ from MySql.schemas import UserCreate
 from redis_utiles.redis_client import save_chat_message, get_recent_messages, cache_user_info
 from redis_utiles.redis_emotion import save_emotion_analysis, get_emotion_history
 from services.emotion_classifier import classify_emotion, classify_emotion_gpt
+
 # ✅ 환경변수 로드 및 OpenAI 클라이언트 설정
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -41,7 +42,6 @@ app.add_middleware(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 # ✅ DB 세션 의존성 주입
 def get_db():
@@ -102,52 +102,56 @@ def chat_with_ai(chat: ChatInput):
     print(f"🛠️ chat.message: {chat.message}")
     print(f"[DEBUG] userId: {chat.userId}, message: {chat.message}")
 
+    # 기본 fallback 응답
+    fallback_reply = "제가 정확히 이해하지는 못했지만, 더 이야기해주시면 도와드릴게요."
+
+    # 1️⃣ 감정 분석
+    emotion, keywords = classify_emotion_gpt(chat.message, client)
+
+    # 2️⃣ 최근 대화 context
+    context = get_recent_messages(chat.userId)
+
+    # 3️⃣ GPT 응답 생성 시도
     try:
-        # 1️⃣ 감정 분석 + 키워드 추출 (우선 GPT 시도, 실패 시 로컬 규칙 사용)
-        emotion, keywords = classify_emotion_gpt(chat.message, client)
-
-        # 2️⃣ 최근 대화 내용 Redis에서 불러오기 (context)
-        context = get_recent_messages(chat.userId)
-
-        # 3️⃣ GPT 프롬프트 생성
         prompt = [
             {"role": "system", "content": "You are a warm, empathetic assistant replying in Korean."},
             {"role": "user", "content": chat.message},
         ]
-
-        # 4️⃣ GPT 응답 생성 (OpenAI v1 방식)
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=prompt
         )
         reply_text = response.choices[0].message.content.strip()
-
-        # 5️⃣ Redis 저장
-        timestamp = datetime.now().isoformat()
-        save_chat_message(
-            user_id=chat.userId,
-            timestamp=timestamp,
-            message=chat.message,
-            emotion=emotion,
-            keywords=keywords,
-        )
-        save_emotion_analysis(
-            user_id=chat.userId,
-            timestamp=timestamp,
-            message=chat.message,
-            emotion=emotion,
-            keywords=keywords,
-        )
-
-        return {
-            "context": context,
-            "reply": reply_text,
-            "emotion": emotion,
-        }
-
+        if not reply_text:
+            print("⚠️ GPT 응답 비어 있음 — fallback 사용")
+            reply_text = fallback_reply
     except Exception as e:
-        print(f"🔥 에러 발생: {e}")
-        raise HTTPException(status_code=500, detail="AI response generation failed")
+        print(f"❌ GPT 실패 — fallback 사용: {e}")
+        reply_text = fallback_reply
+
+    # 4️⃣ Redis 저장
+    timestamp = datetime.now().isoformat()
+    save_chat_message(
+        user_id=chat.userId,
+        timestamp=timestamp,
+        message=chat.message,
+        emotion=emotion,
+        keywords=keywords,
+    )
+    save_emotion_analysis(
+        user_id=chat.userId,
+        timestamp=timestamp,
+        message=chat.message,
+        emotion=emotion,
+        keywords=keywords,
+    )
+
+    # 5️⃣ 응답
+    return {
+        "context": context,
+        "reply": reply_text,
+        "emotion": emotion,
+    }
 
 
 # ✅ 감정 히스토리 및 컨텍스트 조회용 API
@@ -160,3 +164,14 @@ def get_chat_context(user_id: str):
 def get_emotions(user_id: str, limit: int = 10):
     records = get_emotion_history(user_id, limit)
     return {"emotion_history": records}
+
+@app.get("/classify")
+async def classify_emotion_endpoint(message: str):
+    try:
+        emotion, keywords = classify_emotion_gpt(message, client)
+        return {"emotion": emotion, "keywords": keywords}
+    except Exception as e:
+        print(f"[ERROR] classify 실패: {e}")
+        # 이 부분도 fallback 사용해서 500 방지 가능
+        emotion, keywords = classify_emotion(message)
+        return {"emotion": emotion, "keywords": keywords, "fallback": True}
