@@ -1,63 +1,42 @@
-import json
 import os
+import json
 
-# Load trained emotion rules if available
-_RULE_PATH = os.path.join(os.path.dirname(__file__), "emotion_rules.json")
-if os.path.exists(_RULE_PATH):
-    with open(_RULE_PATH, encoding="utf-8") as f:
-        EMOTION_RULES = json.load(f)
-else:
-    EMOTION_RULES = {}
-
-
-# fallback keywords if no rules found
-POSITIVE_KEYWORDS = ["행복", "좋아", "기쁨", "즐겁", "사랑", "감사"]
+# 기본 감정 키워드 세트
+POSITIVE_KEYWORDS = ["좋아", "행복", "기뻐", "설레", "사랑", "만족"]
 NEGATIVE_KEYWORDS = ["슬퍼", "우울", "싫어", "화나", "짜증", "불안"]
 
+EMOTION_RULES = {}  # 추후 json 로드 가능
 
+# 🔧 로컬 키워드 기반 감정 분석 함수
 def classify_emotion(message: str):
-    """Return detected emotion and matched keywords."""
-    if EMOTION_RULES:
-        scores = {}
-        matches = {}
-        for emotion, keywords in EMOTION_RULES.items():
-            found = [kw for kw in keywords if kw in message]
-            scores[emotion] = len(found)
-            matches[emotion] = found
-        if scores:
-            best = max(scores, key=scores.get)
-            if scores[best] > 0:
-                return best, matches[best]
-
-    # Fallback simple sentiment rules
     found_pos = [kw for kw in POSITIVE_KEYWORDS if kw in message]
     found_neg = [kw for kw in NEGATIVE_KEYWORDS if kw in message]
     if found_pos and not found_neg:
-        return "positive", found_pos
+        return "기쁨", found_pos
     if found_neg and not found_pos:
-        return "negative", found_neg
+        return "슬픔", found_neg
     if found_pos and found_neg:
-        return "mixed", found_pos + found_neg
-    return "neutral", []
+        return "혼합", found_pos + found_neg
+    return "중립", []
 
-
+# 🧠 GPT 기반 감정 분석 함수 + fallback 포함
 def classify_emotion_gpt(message: str, client=None):
-    """Use GPT to classify emotion and extract keywords."""
+    """Use GPT to classify emotion and extract keywords. Fallback to rule-based method."""
     if client is None:
         try:
             from openai import OpenAI
-        except Exception:
+            client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        except Exception as e:
+            print(f"[GPT client init failed] {e}")
             return classify_emotion(message)
-
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     prompt = [
         {
             "role": "system",
             "content": (
-                "You analyze the user's Korean message and return a JSON object with "
-                "'emotion' and 'keywords'. Use simple labels such as '기쁨', '슬픔', "
-                "'화남', '중립'."
+                "You are an assistant that analyzes the user's Korean message and responds ONLY in valid JSON format. "
+                "Return only a compact one-line JSON like: {\"emotion\": \"기쁨\", \"keywords\": [\"행복\", \"좋아\"]}. "
+                "Use only one of these emotions: 기쁨, 슬픔, 화남, 중립."
             ),
         },
         {
@@ -72,12 +51,24 @@ def classify_emotion_gpt(message: str, client=None):
             messages=prompt,
             temperature=0,
         )
-        text = response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        if not content:
+            raise ValueError("GPT response content is empty.")
+
+        text = content.lstrip('\ufeff').strip()
+        print(f"[GPT raw response] {text}")
+        print(f"[GPT raw repr] {repr(text)}")
+
+        if not text.startswith("{"):
+            raise ValueError("GPT did not return JSON")
+
         data = json.loads(text)
-        emotion = data.get("emotion", "neutral")
+        emotion = data.get("emotion", "중립")
         keywords = data.get("keywords", [])
         if isinstance(keywords, str):
             keywords = [keywords]
         return emotion, keywords
-    except Exception:
+
+    except Exception as e:
+        print(f"[GPT fallback] JSON decode error or request error: {e}")
         return classify_emotion(message)
