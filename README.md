@@ -46,3 +46,27 @@ Run `backend/emotion_trainer.py` with your labeled chat CSV files to build an
 `emotion` columns (or `text`/`label`). The generated rules allow
 `classify_emotion` to infer emotions such as "기쁨" or "슬픔" from incoming
 messages.
+
+### GPT-Based Classification
+
+`classify_emotion_gpt` in `backend/services/emotion_classifier.py` can utilize
+OpenAI's GPT model to detect an emotion and related keywords from a chat
+message. Set the `OPENAI_API_KEY` environment variable and the API will attempt
+this method first, falling back to the local rules when GPT is unavailable.
+
+### Redis Chat Storage
+
+Chat records in Redis include the user's emotion so that UIs can display an
+emoji next to each message. Each entry stored under `chat:{userId}` has the
+following structure:
+
+```json
+{
+  "userId": "test123",
+  "timestamp": "2025-06-26T21:00:00",
+  "message": "요즘 너무 우울하고 힘들어요",
+  "emotion": "슬픔",
+  "keywords": ["우울", "힘들어"]
+}
+```
+

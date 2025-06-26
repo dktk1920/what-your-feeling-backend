@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 # Load trained emotion rules if available
 _RULE_PATH = os.path.join(os.path.dirname(__file__), "emotion_rules.json")
@@ -39,3 +40,55 @@ def classify_emotion(message: str):
     if found_pos and found_neg:
         return "mixed", found_pos + found_neg
     return "neutral", []
+
+
+def classify_emotion_gpt(message: str, client=None):
+    """Use GPT to classify emotion and extract keywords."""
+    if client is None:
+        try:
+            from openai import OpenAI
+        except Exception:
+            return classify_emotion(message)
+
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    prompt = [
+        {
+            "role": "system",
+            "content": (
+                "You analyze the user's Korean message and return a JSON object with "
+                "'emotion' and 'keywords'. Use simple labels such as '기쁨', '슬픔', "
+                "'화남', '중립'."
+            ),
+        },
+        {
+            "role": "user",
+            "content": message,
+        },
+    ]
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=prompt,
+            temperature=0,
+        )
+        text = response.choices[0].message.content.strip()
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", text, re.DOTALL)
+            if match:
+                data = json.loads(match.group(0))
+            else:
+                raise
+
+        emotion = data.get("emotion", "neutral")
+        keywords = data.get("keywords", [])
+        if isinstance(keywords, str):
+            keywords = [keywords]
+        return emotion, keywords
+    except Exception:
+        return classify_emotion(message)
+

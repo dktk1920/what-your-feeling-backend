@@ -7,10 +7,11 @@ redis = Redis(host="localhost", port=6379, decode_responses=True)
 def save_emotion_analysis(user_id: str, timestamp: str, message: str, emotion: str, keywords: list):
     key = f"chat:emotion:{user_id}"
     data = {
+        "userId": user_id,
         "timestamp": timestamp,
         "message": message,
         "emotion": emotion,
-        "keywords": keywords
+        "keywords": keywords,
     }
     redis.rpush(key, json.dumps(data))
 
