@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 # Load trained emotion rules if available
 _RULE_PATH = os.path.join(os.path.dirname(__file__), "emotion_rules.json")
@@ -73,7 +74,16 @@ def classify_emotion_gpt(message: str, client=None):
             temperature=0,
         )
         text = response.choices[0].message.content.strip()
-        data = json.loads(text)
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", text, re.DOTALL)
+            if match:
+                data = json.loads(match.group(0))
+            else:
+                raise
+
         emotion = data.get("emotion", "neutral")
         keywords = data.get("keywords", [])
         if isinstance(keywords, str):
@@ -81,3 +91,4 @@ def classify_emotion_gpt(message: str, client=None):
         return emotion, keywords
     except Exception:
         return classify_emotion(message)
+
