@@ -1,4 +1,5 @@
 
+
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from MySql.database import SessionLocal
@@ -17,11 +18,14 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 #데이터 유효성 검사와 직렬화/역직렬화를 쉽게 하기 위해 사용하는 코드
 from pydantic import BaseModel
-#redis 추가된 부분
-from redis.redis_client import save_chat_message, get_recent_messages, cache_user_info
-from redis.redis_emotion import save_emotion_analysis, get_emotion_history
+#redis_utiles 추가된 부분
+from redis_utiles.redis_client import save_chat_message, get_recent_messages, cache_user_info
+from redis_utiles.redis_emotion import save_emotion_analysis, get_emotion_history
 from emotion_classifier import classify_emotion
 from datetime import datetime
+
+
+openai.api_key=os.getenv("OPENAI_API_KEY")
 
 # DB 초기화
 print("✅ DB 연결 시도 전")
@@ -99,6 +103,7 @@ class ChatInput(BaseModel):
     userId: str
     message: str
 
+
     try:
         prompt = [
             {
@@ -117,21 +122,32 @@ class ChatInput(BaseModel):
     save_chat_message(chat.userId, chat.message)
     context = get_recent_messages(chat.userId)
 
+
+
     try:
+        print(f"[DEBUG] userId: {chat.userId}, message: {chat.message}")
+        reply = generate_ai_reply(chat.message)
         emotion, keywords = classify_emotion(chat.message)
+
         save_emotion_analysis(
-            chat.userId,
-            datetime.now().isoformat(),
-            chat.message,
-            emotion,
-            keywords,
+            user_id=chat.userId,
+            timestamp=str(datetime.now()),
+            message=chat.message,
+            emotion=emotion,
+            keywords=keywords,
         )
+
+        return {
+            "context": [{"content": chat.message}],
+            "reply": reply,
+            "emotion": emotion,
+        }
+
     except Exception as e:
-        print(f"Emotion classification failed: {e}")
-        emotion = "unknown"
+        print(f"🔥 에러 발생: {e}")
+        raise HTTPException(status_code=500, detail="AI response generation failed")
 
-
-    return {"context": context, "reply": emotion, "emotion": emotion}
+    return {"context": context, "reply": reply_text, "emotion": emotion}
 
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
