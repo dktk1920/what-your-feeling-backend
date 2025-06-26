@@ -99,19 +99,20 @@ def chat(chat: ChatInput):
     context = get_recent_messages(chat.userId)
 
     try:
-        sentiment, keywords = classify_emotion(chat.message)
+        emotion, keywords = classify_emotion(chat.message)
         save_emotion_analysis(
             chat.userId,
             datetime.now().isoformat(),
             chat.message,
-            sentiment,
+            emotion,
             keywords,
         )
     except Exception as e:
         print(f"Emotion classification failed: {e}")
-        sentiment = "unknown"
+        emotion = "unknown"
 
-    return {"context": context, "reply": "AI 응답 예시", "sentiment": sentiment}
+    # Echo the detected emotion in both the reply message and a dedicated field
+    return {"context": context, "reply": emotion, "emotion": emotion}
 
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
