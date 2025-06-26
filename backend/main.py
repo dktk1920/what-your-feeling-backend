@@ -11,9 +11,9 @@ from passlib.context import CryptContext
 
 #데이터 유효성 검사와 직렬화/역직렬화를 쉽게 하기 위해 사용하는 코드
 from pydantic import BaseModel
-#redis 추가된 부분
-from redis.redis_client import save_chat_message, get_recent_messages, cache_user_info
-from redis.redis_emotion import save_emotion_analysis
+#redis_utiles 추가된 부분
+from redis_utiles.redis_client import save_chat_message, get_recent_messages, cache_user_info
+from redis_utiles.redis_emotion import save_emotion_analysis
 from emotion_classifier import classify_emotion
 from datetime import datetime
 
