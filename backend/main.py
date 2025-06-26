@@ -111,7 +111,8 @@ def chat(chat: ChatInput):
         print(f"Emotion classification failed: {e}")
         emotion = "unknown"
 
-    return {"context": context, "reply": "AI 응답 예시", "emotion": emotion}
+
+    return {"context": context, "reply": emotion, "emotion": emotion}
 
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
