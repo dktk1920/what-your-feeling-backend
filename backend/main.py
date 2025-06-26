@@ -7,6 +7,12 @@ from MySql.schemas import UserCreate
 from MySql.database import Base, engine
 from fastapi.middleware.cors import CORSMiddleware
 from passlib.context import CryptContext
+from dotenv import load_dotenv
+import os
+import openai
+
+load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 #데이터 유효성 검사와 직렬화/역직렬화를 쉽게 하기 위해 사용하는 코드
@@ -99,19 +105,33 @@ def chat(chat: ChatInput):
     context = get_recent_messages(chat.userId)
 
     try:
-        sentiment, keywords = classify_emotion(chat.message)
+        prompt = [
+            {
+                "role": "system",
+                "content": "You are a warm, empathetic assistant replying in Korean.",
+            },
+            {"role": "user", "content": chat.message},
+        ]
+        resp = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=prompt)
+        reply_text = resp.choices[0].message["content"].strip()
+    except Exception as e:
+        print(f"GPT call failed: {e}")
+        reply_text = "죄송합니다. 답변을 생성하지 못했습니다."
+
+    try:
+        emotion, keywords = classify_emotion(chat.message)
         save_emotion_analysis(
             chat.userId,
             datetime.now().isoformat(),
             chat.message,
-            sentiment,
+            emotion,
             keywords,
         )
     except Exception as e:
         print(f"Emotion classification failed: {e}")
-        sentiment = "unknown"
+        emotion = "unknown"
 
-    return {"context": context, "reply": "AI 응답 예시", "sentiment": sentiment}
+    return {"context": context, "reply": reply_text, "emotion": emotion}
 
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
