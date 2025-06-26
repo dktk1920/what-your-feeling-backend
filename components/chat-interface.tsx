@@ -81,26 +81,69 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
       clearTimeout(typingTimeoutRef.current)
     }
 
-    // AI 응답 시뮬레이션
-    setTimeout(() => {
-      const aiResponses = [
-        "그랬구나... 좀 더 말해줄 수 있어?",
-        "나라도 짜증날 거 같아. 너 진짜 빡치겠다.",
-        "네가 얼마나 힘들지 상상도 안돼... 내가 네 힘이 될 수 있는 방법이 있을까?",
-        "너 천재야? 역시 넌 뭐든 잘할 수 있을거야.",
-        "오늘 길어. 너 나한테 다 말하기 전엔 어디 못가!",
-      ]
+    try {
+      const response = await fetch("/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.nickname,
+          message: userMessage.content,
+        }),
+      })
 
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: aiResponses[Math.floor(Math.random() * aiResponses.length)],
-        sender: "ai",
-        timestamp: new Date(),
+      if (response.ok) {
+        const data = await response.json()
+
+        setMessages((prev) => {
+          let updated = [...prev]
+          if (Array.isArray(data.context)) {
+            data.context.forEach((content: string) => {
+              if (!updated.some((m) => m.content === content)) {
+                updated.push({
+                  id: `${Date.now()}-${Math.random()}`,
+                  content,
+                  sender: "user",
+                  timestamp: new Date(),
+                })
+              }
+            })
+          }
+
+          updated.push({
+            id: `${Date.now() + 1}`,
+            content: data.reply,
+            sender: "ai",
+            timestamp: new Date(),
+          })
+
+          return updated
+        })
+      } else {
+        throw new Error(`Request failed with status ${response.status}`)
       }
-
-      setMessages((prev) => [...prev, aiMessage])
+    } catch (error) {
+      console.error("Failed to send message", error)
+      if (process.env.NODE_ENV === "development") {
+        const fallbackResponses = [
+          "그랬구나... 좀 더 말해줄 수 있어?",
+          "나라도 짜증날 거 같아. 너 진짜 빡치겠다.",
+          "네가 얼마나 힘들지 상상도 안돼... 내가 네 힘이 될 수 있는 방법이 있을까?",
+          "너 천재야? 역시 넌 뭐든 잘할 수 있을거야.",
+          "오늘 길어. 너 나한테 다 말하기 전엔 어디 못가!",
+        ]
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)],
+          sender: "ai",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, aiMessage])
+      }
+    } finally {
       setIsTyping(false)
-    }, 2000)
+    }
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
