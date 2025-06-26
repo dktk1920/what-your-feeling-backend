@@ -75,6 +75,7 @@ def classify_emotion_gpt(message: str, client=None):
         )
         text = response.choices[0].message.content.strip()
 
+
         try:
             data = json.loads(text)
         except json.JSONDecodeError:
@@ -84,6 +85,7 @@ def classify_emotion_gpt(message: str, client=None):
             else:
                 raise
 
+
         emotion = data.get("emotion", "neutral")
         keywords = data.get("keywords", [])
         if isinstance(keywords, str):
@@ -91,4 +93,3 @@ def classify_emotion_gpt(message: str, client=None):
         return emotion, keywords
     except Exception:
         return classify_emotion(message)
-
