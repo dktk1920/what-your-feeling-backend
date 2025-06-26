@@ -75,7 +75,7 @@ const handleSubmit = async () => {
   setStep("submitting");
 
   try {
-    const response = await fetch("http://13.209.64.179:8000/signup", {
+    const response = await fetch("/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

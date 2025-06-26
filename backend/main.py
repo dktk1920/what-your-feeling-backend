@@ -12,20 +12,26 @@ from passlib.context import CryptContext
 #데이터 유효성 검사와 직렬화/역직렬화를 쉽게 하기 위해 사용하는 코드
 from pydantic import BaseModel
 #redis 추가된 부분
-from redis_client import save_chat_message, get_recent_messages, cache_user_info
+from redis.redis_client import save_chat_message, get_recent_messages, cache_user_info
 
 # DB 초기화
 print("✅ DB 연결 시도 전")
-# Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 print("✅ DB 연결 성공 및 테이블 생성 완료")
 
 app = FastAPI()
 
+#테스트용 임시 저장 주소
+origins = [
+    "http://localhost:3000",
+    "http://192.168.0.193:3000",  # 실제 프론트 주소
+]
+
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 배포 시 도메인으로 변경
+    allow_origins=origins,  # 배포 시 도메인으로 변경
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

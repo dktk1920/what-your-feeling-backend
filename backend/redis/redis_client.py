@@ -1,4 +1,4 @@
-# redis_client.py
+# redis_chat_save.py
 # 캐시: 자주 사용되는 데이터를 임시로 저장해두는 저장소, DB나 서버 대신 사용하는 임시 저장 공간
 # 메모리 기반 저장소라 DB보다 수십배 빠름, 같은 데이터를 반복 조회할 떄 서버 부하를 줄임
 from redis import Redis
@@ -7,7 +7,7 @@ import json
 #port=6379: 기본 Redis 포트 , decode_responses=True: Redis 응답을 문자열로 반환하도록 설정(바이트X)
 redis = Redis(host="localhost", port=6379, decode_responses=True)
 
-########채팅 메시지 저장########
+########채팅 메시지 저장 기능########
 
 #채팅 메시지 저장(최근 10개의 메시지만 유지)
 def save_chat_message(user_id: str, message: str):
@@ -27,6 +27,4 @@ def cache_user_info(user_id: str, user_data: dict):
 def get_cached_user_info(user_id: str):
     data = redis.get(f"user:{user_id}")
     return json.loads(data) if data else None
-
-#########감정 분석 학습용 기능 추가########
 
