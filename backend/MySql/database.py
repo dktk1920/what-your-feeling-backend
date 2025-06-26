@@ -5,12 +5,12 @@ from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 
 # .env 경로 지정
-dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", ".env")
 load_dotenv(dotenv_path)
 
 # 환경변수 가져오기
 DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
+DB_PORT = os.getenv("DB_PORT", "3306")  # ✅ 기본값 지정
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_NAME = os.getenv("DB_NAME")

@@ -1,59 +1,49 @@
-
-
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from MySql.database import SessionLocal
+from passlib.context import CryptContext
+from pydantic import BaseModel
+from dotenv import load_dotenv
+from openai import OpenAI
+from datetime import datetime
+import os
+
+# 🧩 내부 모듈
+from MySql.database import SessionLocal, Base, engine
 from MySql.models import User
 from MySql.schemas import UserCreate
-from MySql.database import Base, engine
-from fastapi.middleware.cors import CORSMiddleware
-from passlib.context import CryptContext
-from dotenv import load_dotenv
-import os
-import openai
-
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-
-#데이터 유효성 검사와 직렬화/역직렬화를 쉽게 하기 위해 사용하는 코드
-from pydantic import BaseModel
-#redis_utiles 추가된 부분
 from redis_utiles.redis_client import save_chat_message, get_recent_messages, cache_user_info
 from redis_utiles.redis_emotion import save_emotion_analysis, get_emotion_history
-from emotion_classifier import classify_emotion
-from datetime import datetime
+from services.emotion_classifier import classify_emotion
+# ✅ 환경변수 로드 및 OpenAI 클라이언트 설정
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-
-openai.api_key=os.getenv("OPENAI_API_KEY")
-
-# DB 초기화
+# ✅ DB 연결
 print("✅ DB 연결 시도 전")
 Base.metadata.create_all(bind=engine)
-
 print("✅ DB 연결 성공 및 테이블 생성 완료")
 
+# ✅ FastAPI 앱 초기화 및 CORS 설정
 app = FastAPI()
 
-#테스트용 임시 저장 주소
 origins = [
     "http://localhost:3000",
-    "http://192.168.0.193:3000",  # 실제 프론트 주소
+    "http://192.168.0.193:3000",
 ]
 
-# CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # 배포 시 도메인으로 변경
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 비밀번호 해싱 도구
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# DB 세션 의존성 주입
+
+# ✅ DB 세션 의존성 주입
 def get_db():
     db = SessionLocal()
     try:
@@ -61,17 +51,17 @@ def get_db():
     finally:
         db.close()
 
+
+# ✅ 회원가입 API
 @app.post("/signup")
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     print("🚀 /signup 요청 도착!")
     print(f"📦 받은 데이터: {user.dict()}")
 
-    # 아이디 중복 확인
     if db.query(User).filter(User.userId == user.userId).first():
         print("⚠️ 이미 존재하는 아이디:", user.userId)
         raise HTTPException(status_code=400, detail="이미 사용 중인 아이디입니다.")
 
-    # 비밀번호 해싱
     hashed_password = pwd_context.hash(user.password)
 
     new_user = User(
@@ -85,6 +75,8 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 
     db.add(new_user)
     db.commit()
+    db.refresh(new_user)
+
     cache_user_info(
         new_user.userId,
         {
@@ -94,41 +86,44 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
             "birthDate": str(new_user.birthDate),
         }
     )
-    db.refresh(new_user)
 
     print("✅ 회원가입 성공:", new_user.userId)
     return {"message": "회원가입 성공", "userId": new_user.userId}
 
+
+# ✅ 감정 분석 + 응답 생성 API
 class ChatInput(BaseModel):
     userId: str
     message: str
 
+@app.post("/chat")
+def chat_with_ai(chat: ChatInput):
+    print(f"🛠️ chat.userId: {chat.userId}")
+    print(f"🛠️ chat.message: {chat.message}")
+    print(f"[DEBUG] userId: {chat.userId}, message: {chat.message}")
 
     try:
-        prompt = [
-            {
-                "role": "system",
-                "content": "You are a warm, empathetic assistant replying in Korean.",
-            },
-            {"role": "user", "content": chat.message},
-        ]
-        resp = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=prompt)
-        reply_text = resp.choices[0].message["content"].strip()
-    except Exception as e:
-        print(f"GPT call failed: {e}")
-        reply_text = "죄송합니다. 답변을 생성하지 못했습니다."
-
-    return {"context": context, "reply": reply_text, "emotion": emotion}
-    save_chat_message(chat.userId, chat.message)
-    context = get_recent_messages(chat.userId)
-
-
-
-    try:
-        print(f"[DEBUG] userId: {chat.userId}, message: {chat.message}")
-        reply = generate_ai_reply(chat.message)
+        # 1️⃣ 감정 분석 + 키워드 추출
         emotion, keywords = classify_emotion(chat.message)
 
+        # 2️⃣ 최근 대화 내용 Redis에서 불러오기 (context)
+        context = get_recent_messages(chat.userId)
+
+        # 3️⃣ GPT 프롬프트 생성
+        prompt = [
+            {"role": "system", "content": "You are a warm, empathetic assistant replying in Korean."},
+            {"role": "user", "content": chat.message},
+        ]
+
+        # 4️⃣ GPT 응답 생성 (OpenAI v1 방식)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=prompt
+        )
+        reply_text = response.choices[0].message.content.strip()
+
+        # 5️⃣ Redis 저장
+        save_chat_message(chat.userId, chat.message)
         save_emotion_analysis(
             user_id=chat.userId,
             timestamp=str(datetime.now()),
@@ -138,8 +133,8 @@ class ChatInput(BaseModel):
         )
 
         return {
-            "context": [{"content": chat.message}],
-            "reply": reply,
+            "context": context,
+            "reply": reply_text,
             "emotion": emotion,
         }
 
@@ -147,8 +142,8 @@ class ChatInput(BaseModel):
         print(f"🔥 에러 발생: {e}")
         raise HTTPException(status_code=500, detail="AI response generation failed")
 
-    return {"context": context, "reply": reply_text, "emotion": emotion}
 
+# ✅ 감정 히스토리 및 컨텍스트 조회용 API
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
     messages = get_recent_messages(user_id)
