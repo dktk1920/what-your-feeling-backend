@@ -1,4 +1,6 @@
-
+import openai
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from MySql.database import SessionLocal
@@ -16,6 +18,9 @@ from redis_utiles.redis_client import save_chat_message, get_recent_messages, ca
 from redis_utiles.redis_emotion import save_emotion_analysis, get_emotion_history
 from emotion_classifier import classify_emotion
 from datetime import datetime
+
+load_dotenv()
+openai.api_key=os.getenv("OPENAI_API_KEY")
 
 # DB 초기화
 print("✅ DB 연결 시도 전")
