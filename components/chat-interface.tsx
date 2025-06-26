@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { getApiBase } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -53,7 +52,6 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
     setInputMessage(e.target.value)
     setIsUserTyping(true)
 
-    // 타이핑 타임아웃 리셋
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current)
     }
@@ -78,7 +76,6 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
     setIsUserTyping(false)
     setIsTyping(true)
 
-    // 타이핑 타임아웃 클리어
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current)
     }
@@ -124,10 +121,12 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
           return updated
         })
       } else {
-        throw new Error(`Request failed with status ${response.status}`)
+        const errorText = await response.text()
+        console.error("📛 서버 응답 오류:", errorText)
+        throw new Error(`Request failed: ${response.status}\n${errorText}`)
       }
-    } catch (error) {
-      console.error("Failed to send message", error)
+    } catch (error: any) {
+      console.error("🚨 메시지 전송 실패:", error)
       if (process.env.NODE_ENV === "development") {
         const fallbackResponses = [
           "그랬구나... 좀 더 말해줄 수 있어?",
@@ -138,7 +137,7 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
         ]
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)],
+          content: `⚠️ 서버 응답 실패: ${error.message}\n\n${fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)]}`,
           sender: "ai",
           timestamp: new Date(),
         }
@@ -198,14 +197,8 @@ export default function ChatInterface({ user }: ChatInterfaceProps) {
               <div className="flex items-center space-x-2">
                 <div className="flex space-x-1">
                   <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce"></div>
-                  <div
-                    className="w-2 h-2 bg-amber-400 rounded-full animate-bounce"
-                    style={{ animationDelay: "0.1s" }}
-                  ></div>
-                  <div
-                    className="w-2 h-2 bg-amber-400 rounded-full animate-bounce"
-                    style={{ animationDelay: "0.2s" }}
-                  ></div>
+                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
                 </div>
                 <span className="text-xs text-gray-500 ml-2">작성 중...</span>
               </div>
