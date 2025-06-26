@@ -54,7 +54,10 @@ OpenAI's GPT model to detect an emotion and related keywords from a chat
 message. Set the `OPENAI_API_KEY` environment variable and the API will attempt
 this method first, falling back to the local rules when GPT is unavailable.
 
+<<<<<<< ntoxk7-codex/유저-감정-분류-및-키워드-저장-구현
+=======
 
+>>>>>>> main
 ### Redis Chat Storage
 
 Chat records in Redis include the user's emotion so that UIs can display an
@@ -70,3 +73,7 @@ following structure:
   "keywords": ["우울", "힘들어"]
 }
 ```
+<<<<<<< ntoxk7-codex/유저-감정-분류-및-키워드-저장-구현
+
+=======
+>>>>>>> main
