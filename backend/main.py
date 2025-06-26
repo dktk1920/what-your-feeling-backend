@@ -104,6 +104,16 @@ def chat(chat: ChatInput):
     context = get_recent_messages(chat.userId)
 
     try:
+        gpt_response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": chat.message}],
+        )
+        reply_text = gpt_response.choices[0].message["content"].strip()
+    except Exception as e:
+        print(f"OpenAI API call failed: {e}")
+        raise HTTPException(status_code=500, detail="AI response generation failed")
+
+    try:
         emotion, keywords = classify_emotion(chat.message)
         save_emotion_analysis(
             chat.userId,
@@ -115,9 +125,9 @@ def chat(chat: ChatInput):
     except Exception as e:
         print(f"Emotion classification failed: {e}")
         emotion = "unknown"
+        keywords = []
 
-
-    return {"context": context, "reply": emotion, "emotion": emotion}
+    return {"context": context, "reply": reply_text, "emotion": emotion}
 
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
