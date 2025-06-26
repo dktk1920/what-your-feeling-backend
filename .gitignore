@@ -17,7 +17,7 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+backend/MySql/.env
 
 # vercel
 .vercel
@@ -25,3 +25,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Environment files
+.env
+backend/.env  # 필요 시 추가

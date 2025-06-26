@@ -7,6 +7,8 @@ import json
 #port=6379: 기본 Redis 포트 , decode_responses=True: Redis 응답을 문자열로 반환하도록 설정(바이트X)
 redis = Redis(host="localhost", port=6379, decode_responses=True)
 
+########채팅 메시지 저장########
+
 #채팅 메시지 저장(최근 10개의 메시지만 유지)
 def save_chat_message(user_id: str, message: str):
     key = f"chat:{user_id}"
@@ -25,3 +27,6 @@ def cache_user_info(user_id: str, user_data: dict):
 def get_cached_user_info(user_id: str):
     data = redis.get(f"user:{user_id}")
     return json.loads(data) if data else None
+
+#########감정 분석 학습용 기능 추가########
+
