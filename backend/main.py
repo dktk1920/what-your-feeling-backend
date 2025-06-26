@@ -13,6 +13,9 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 #redis 추가된 부분
 from redis.redis_client import save_chat_message, get_recent_messages, cache_user_info
+from redis.redis_emotion import save_emotion_analysis
+from emotion_classifier import classify_emotion
+from datetime import datetime
 
 # DB 초기화
 print("✅ DB 연결 시도 전")
@@ -94,7 +97,21 @@ class ChatInput(BaseModel):
 def chat(chat: ChatInput):
     save_chat_message(chat.userId, chat.message)
     context = get_recent_messages(chat.userId)
-    return {"context": context, "reply": "AI 응답 예시"}
+
+    try:
+        sentiment, keywords = classify_emotion(chat.message)
+        save_emotion_analysis(
+            chat.userId,
+            datetime.now().isoformat(),
+            chat.message,
+            sentiment,
+            keywords,
+        )
+    except Exception as e:
+        print(f"Emotion classification failed: {e}")
+        sentiment = "unknown"
+
+    return {"context": context, "reply": "AI 응답 예시", "sentiment": sentiment}
 
 @app.get("/chat/context/{user_id}")
 def get_chat_context(user_id: str):
