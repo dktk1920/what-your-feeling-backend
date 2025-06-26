@@ -111,7 +111,7 @@ def chat(chat: ChatInput):
         print(f"Emotion classification failed: {e}")
         emotion = "unknown"
 
-    # Echo the detected emotion in both the reply message and a dedicated field
+
     return {"context": context, "reply": emotion, "emotion": emotion}
 
 @app.get("/chat/context/{user_id}")
