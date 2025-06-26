@@ -4,12 +4,12 @@ import json
 
 redis = Redis(host="localhost", port=6379, decode_responses=True)
 
-def save_emotion_analysis(user_id: str, timestamp: str, message: str, sentiment: str, keywords: list):
+def save_emotion_analysis(user_id: str, timestamp: str, message: str, emotion: str, keywords: list):
     key = f"chat:emotion:{user_id}"
     data = {
         "timestamp": timestamp,
         "message": message,
-        "sentiment": sentiment,
+        "emotion": emotion,
         "keywords": keywords
     }
     redis.rpush(key, json.dumps(data))
